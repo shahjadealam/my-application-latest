@@ -51,4 +51,8 @@ public class UserService {
             throw new UserNotFoundException("USER_NOT_FOUND", id);
         }
     }
+
+    public String getMailStatus(String email){
+        return "success";
+    }
 }

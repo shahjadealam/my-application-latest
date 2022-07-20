@@ -1,0 +1,336 @@
+-------Implementatations in MyApplication.git-------
+URL : https://github.com/shahjadealam/myapp-latest.git
+CONTENTS-
+1. Embeded Database H2
+2. Integrated Swagger-UI-3.0
+3. Swagger-UI-3 Basic Authentications
+4. Feign Client
+5. Spring Boot Global Exception Handling
+6. Rest API Custom Response Body
+7. Mapper (MapStruct)
+8. INPUT VALIDATION Request DTO
+9. JUNIT TEST CASES + Mokito
+10. Junit + Power mock mocking static & private methods
+11. Integration test Rest API
+====================================================================================
+## 1. Embeded Database H2
+step-1: add H2 dependency
+step-2: add properties file
+step-3: copy data.sql file from resourse
+step-4: Create an Entity class
+step-5: Create an Repository interface
+
+====================================================================================
+## 2. Integrated Swagger-UI-3.0
+	1.1: just need to add below dependency-
+		<dependency>
+			<groupId>org.springdoc</groupId>
+			<artifactId>springdoc-openapi-ui</artifactId>
+			<version>1.6.4</version>
+		</dependency>
+		
+	1.2: Add into Controller class
+		@Tag(name = "Card Controller", description = "Card Controller for All the Cards")
+		
+	1.3: Add into main class
+	@OpenAPIDefinition(info = @Info(title = "Card API", version = "1.0", description = "Card Information"))
+
+====================================================================================
+## 3. Swagger-UI-3 Basic Authentications
+1.1: Add dependency
+	<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security</artifactId>
+	</dependency>
+
+1.2: add below into properties file
+	spring.security.user.name=system
+	spring.security.user.password=system
+	springdoc.swagger-ui.csrf.enabled=true
+
+1.3: create SecurityConfig  class
+
+1.3: Add into main class
+	@SecurityScheme(name = "swaggerAuth", scheme = "basic", type = SecuritySchemeType.HTTP, in = SecuritySchemeIn.HEADER)
+	
+1.4: Add into Controller
+	@SecurityRequirement(name = "swaggerAuth")
+====================================================================================	
+## 4. Feign Client
+1.1 : Add dependency
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-openfeign</artifactId>
+    <version>3.1.3</version>
+</dependency>
+
+1.2 : Add annotation on main class @EnableFeignClients
+
+1.3 : Add into properties file
+loan.service.name=loans
+loan.client.baseurl=http://localhost:7072/
+
+1.4 : Create Client class
+@FeignClient(name = "${loan.service.name}", url = "${loan.client.baseurl}")
+public interface LoanClient {
+  @PostMapping("/myLoans")
+  public List<Loans> getLoansDetails(@RequestBody Customer customer);
+}
+
+1.5 : Calling
+	Autowire in Service Class	
+		@Autowired
+-	private LoanClient loanClient;
+-	loanClient.getLoansDetails(customer);
+
+
+1.5.0 : (IF Required) Credentials to consume API
+- Create an Configuration class  and update CLient as :
+1.5.1 : 
+@FeignClient(name = "${loan.service.name}", 
+url = "${loan.client.baseurl}", configuration = LoanFeignClientConfiguration.class)
+
+1.5.2 : 
+@Configuration
+public class LoanFeignClientConfiguration {
+
+  @Value("${archival.client.username}")
+  private String username;
+
+  @Value("${archival.client.password}")
+  private String password;
+
+  @Bean(name = "archivalAuthRequestInterceptor")
+  public BasicAuthRequestInterceptor basicAuthRequestInterceptor() {
+    return new BasicAuthRequestInterceptor(username, password);
+  }
+}
+====================================================================================
+## 5. Spring Boot Global Exception Handling
+    - Create an Handler class (named ApplicationExceptionHandler)
+	- annotate this class as @RestControllerAdvice
+	- write an handler method inside this class based on business exception
+	
+1.	@RestControllerAdvice
+	public class AppliationExceptionHandler {
+	
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    @ExceptionHandler(OperationFailedException.class)
+    public Map<String,String> handleBusinessException(OperationFailedException ex){ // this is specific exception Handler
+        Map<String, String> errorMap = new HashMap<>();
+        errorMap.put("errorMessage", ex.getMessage());
+        return errorMap;
+    }
+
+--> @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    @ExceptionHandler(Exception.class)
+    public Map<String,String> handleGenericException(Exception ex){ // this is generic exception handler
+        Map<String, String> errorMap = new HashMap<>();
+        errorMap.put("errorMessage", "Something went wrong. Please contact to the administrator");
+        return errorMap;
+    }
+	
+2. Create an class and extend Exception
+	public class OperationFailedException extends Exception{
+
+    public OperationFailedException(String message) {
+        super(message);
+    }
+}
+
+3. throw this Exception from Service
+	if (cards != null && cards.size() != 0)  {
+			return cards;
+		} else {
+			throw new OperationFailedException("Customer not present with Id:"+customer.getCustomerId());
+		}
+
+4. I have used ErrorBundle --- see in exception package..
+
+====================================================================================
+## 6. Rest API Custom Response Body
+1. Create an Response Container Class
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class ResponseContainer<T> {
+  
+  private String errorCode;
+  private String errorMessage;
+  private T response;
+
+  public ResponseContainer(T response) {
+    this.response = response;
+  }
+  
+  public static <T> ResponseContainer<T> of(final T response) {
+    return new ResponseContainer<>(response);
+  }
+}
+
+2. write your controller
+	@PostMapping("/myCards")
+	public ResponseEntity<ResponseContainer<List<Cards>>> getCardDetails(@RequestBody Customer customer) throws OperationFailedException {
+		log.info("Get Card details by customer id :: {}", customer.getCustomerId());
+		List<Cards> cards = cardsService.getByCustomerId(customer.getCustomerId());
+		return ResponseEntity.ok(new ResponseContainer<>(cards));
+	}
+	
+
+====================================================================================
+## 7. Mapper (MapStruct)
+1. Add Dependecy
+		<dependency>
+			<groupId>org.mapstruct</groupId>
+			<artifactId>mapstruct</artifactId>
+			<version>1.4.2.Final</version>
+		</dependency>
+
+2. create mapper package in SERVICE layer and create an interface, annotate , declear methods
+	@Mapper
+	public interface CardsEntityToBOMapper {
+	
+	@Mapping(target = "address",source = "city"); // if Entity & BO fields name are different
+	@Mapping(target = "address", source = "city", qualifiedByName = "convertToFullAddress") // custom conversion
+	@Mapping(target = "deleted",defaultValue = "false") // if want to set default value
+    List<CardsBO> convertEntityToBo(List<CardsEntity> entities); //default for same fields
+	
+	
+	@Named("convertToFullAddress")
+	String convert(final String city) {
+	return city+"any String";
+}
+
+2.1	create instance of mapper in serviceImpl class and call the method
+ private CardsEntityToBOMapper cardsEntityToBOMapper = Mappers.getMapper(CardsEntityToBOMapper.class);
+ cardsEntityToBOMapper.convertEntityToBo(cards); // calling after getting repository response
+
+ 
+3. create mapper package in CONTROLLER layer and create an interface, annotate , declear methods
+	@Mapper
+	public interface CardsBoToDtoMapper {
+	
+    List<CardsResponseDto> convertBoToDto(List<CardsBO> cardsBOS ); //default
+}
+
+3.1 create instance of mapper in controller class and call the method
+	private CardsBoToDtoMapper cardsBoToDtoMapper = Mappers.getMapper(CardsBoToDtoMapper.class);
+	cardsBoToDtoMapper.convertBoToDto(cards); // calling after getting service response
+
+
+====================================================================================
+## 8. INPUT VALIDATION Request DTO
+#	Add dependency
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-validation</artifactId>
+		</dependency>
+# Go to Dto Request Class
+	@NotNull(message = "username shouldn't be null")
+    private String name;
+    @Email(message = "invalid email address")
+    private String email;
+    @Pattern(regexp = "^\\d{10}$",message = "invalid mobile number entered ")
+    private String mobile;
+    private String gender;
+    @Min(18)
+    @Max(60)
+    private int age;
+    @NotBlank
+    private String nationality;
+	
+====================================================================================
+## 9. JUNIT TEST CASES + Mokito
+reference : https://www.youtube.com/watch?v=kXhYu939_5s   
+# add dependency
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>4.12</version>
+			<scope>test</scope>
+		</dependency>
+# add plugin (it will run while compile time)
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<version>2.22.0</version>
+				<dependencies>
+					<dependency>
+						<groupId>org.apache.maven.surefire</groupId>
+						<artifactId>surefire-junit4</artifactId>
+						<version>2.22.0</version>
+					</dependency>
+				</dependencies>
+				<configuration>
+					<includes>
+						<include>**/*.java</include>
+					</includes>
+				</configuration>
+			</plugin>
+
+# Create Test Class and methods
+@SpringBootTest
+@RunWith(SpringRunner.class)
+public class UserControllerTest {
+
+    @Autowired
+    private UserService userService;
+
+    @MockBean
+    private UserRepository userRepository;
+
+   @Test
+    public void saveUser(){
+        User user = new User(101,"Shahjade","shahajde.alam@nagarro.com","9998886567","Male",28,"INDIAN");
+        Mockito.when(userRepository.save(user)).thenReturn(user);
+        //Assert.assertEquals(user,userService.saveUser(user); //need to pass UserRequest will use Mapper
+
+   }
+
+    @Test
+    public  void fetchAllUsersTest() throws ApplicationInternalException {
+        Mockito.when(userRepository.findAll())
+                .thenReturn(Stream.of(
+                        new User(101,"Shahjade","shahajde.alam@nagarro.com","9998886567","Male",28,"INDIAN"),
+        new User(101,"Shahjade","shahajde.alam@nagarro.com","9998886567","Male",28,"INDIAN"))
+                        .collect(Collectors.toList()));
+        Assert.assertEquals(2, userService.getALlUsers().size());
+    }
+
+    @Test
+    public void getUserByIdTest() throws UserNotFoundException {
+        Mockito.when(userRepository.findByUserId(1))
+                .thenReturn(
+                new User(101,"Shahjade","shahajde.alam@nagarro.com","9998886567","Male",28,"INDIAN"));
+        Assert.assertEquals("Shahjade",userService.getUser(1).getName());
+    }
+
+    @Test
+    public void deleteByUserIdTest() throws UserNotFoundException {
+        userRepository.deleteById(1);
+        Mockito.verify(userRepository, Mockito.times(1)).deleteById(1);
+    }
+}
+
+====================================================================================
+## 10. Junit + Power mock mocking static & private methods
+Reference : https://www.youtube.com/watch?v=WBZHm4UlPPE&t=1040s
+			https://www.journaldev.com/21912/mockito-mock-static-method-powermock   //not worked for message
+	
+====================================================================================
+## 11. Integration test Rest API
+Reference : https://www.youtube.com/watch?v=Hh17JDpsKqc 
+
+what is Integration test : in this we test all the layers web/service/dao layer is working properly.
+
+- create a resource folder under test package and add application.yml
+	- add default credentials of H2 database.		// here we are using H2 Embeded database for the integration testing.
+
+- create a repository under test/java package
+
+- create a test class ProducControllerIntegrationTest and add the test methods
+
+
+	
+## . Pagination
+====================================================================================

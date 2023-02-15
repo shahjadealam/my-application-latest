@@ -21,6 +21,7 @@ public class ProductService {
     }
 
     public List<Product> getProducts() {
+        breakfast();
         return repository.findAll();
     }
 
@@ -45,5 +46,10 @@ public class ProductService {
         return repository.save(existingProduct);
     }
 
+    private void breakfast(){
+        for(int i = 0; i < 5; i++){
+            System.out.println("Break Time Reminder-"+i);
+        }
 
+    }
 }

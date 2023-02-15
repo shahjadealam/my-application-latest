@@ -18,9 +18,7 @@ public class UserService {
     private UserRepository repository;
 
     public User saveUser(UserRequest userRequest) {
-        User user = new User(0, userRequest.getName(), userRequest.getEmail(),
-                        userRequest.getMobile(), userRequest.getGender(), userRequest.getAge(), userRequest.getNationality());
-        return repository.save(user);
+        return repository.save(userRequest.getUser());
     }
 
     public List<User> getALlUsers() throws ApplicationInternalException {

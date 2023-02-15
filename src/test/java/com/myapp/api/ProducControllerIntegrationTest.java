@@ -65,7 +65,7 @@ class ProducControllerIntegrationTest {
         Product product = restTemplate.getForObject(baseUrl + "/{id}", Product.class, 1);
         assertAll(
                 () -> assertNotNull(product),
-                () -> assertEquals(1, product.getId()),
+                () -> assertEquals(1, product.getPid()),
                 () -> assertEquals("CAR", product.getName())
         );
 

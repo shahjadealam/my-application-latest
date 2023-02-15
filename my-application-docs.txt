@@ -175,7 +175,6 @@ public class ResponseContainer<T> {
 		List<Cards> cards = cardsService.getByCustomerId(customer.getCustomerId());
 		return ResponseEntity.ok(new ResponseContainer<>(cards));
 	}
-	
 
 ====================================================================================
 ## 7. Mapper (MapStruct)
@@ -216,7 +215,6 @@ public class ResponseContainer<T> {
 3.1 create instance of mapper in controller class and call the method
 	private CardsBoToDtoMapper cardsBoToDtoMapper = Mappers.getMapper(CardsBoToDtoMapper.class);
 	cardsBoToDtoMapper.convertBoToDto(cards); // calling after getting service response
-
 
 ====================================================================================
 ## 8. INPUT VALIDATION Request DTO
@@ -330,7 +328,6 @@ what is Integration test : in this we test all the layers web/service/dao layer 
 
 - create a test class ProducControllerIntegrationTest and add the test methods
 
-
-	
 ## . Pagination
 ====================================================================================
+added demo branch2
